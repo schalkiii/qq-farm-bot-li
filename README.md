@@ -160,6 +160,22 @@ bash ./stop.sh
 
 前端类型检查已与生产构建拆分，需要单独检查时执行 `pnpm typecheck:web`。
 
+### Windows 启动脚本
+
+```bat
+start.bat
+start.bat rebuild
+start.bat status
+```
+
+`start.bat` 是 `start.sh` 在 Windows 上的对应入口。默认直接运行仓库里签入的构建产物，不调用任何编译器；三份产物（`web/dist/index.html`、`core/client.js`、`core/dist/runtime/runtime-engine.js`）有缺失时才安装依赖并执行一次 `pnpm build`。`rebuild` 强制完整重建，`status` 只打印将要使用的配置，不启动进程。脚本会先检查监听端口，发现同一端口上已有实例时直接退出，避免两个进程共用同一份 `core/data`。
+
+面板端口默认 `3008`（`ADMIN_PORT` 未设置时），因为同一台机器上的另一份实例占用 `3007`；`ADMIN_PORT` 已由外部设置时沿用外部值。
+
+脚本同时注入 NapCat 所需的三项配置：`NAPCAT_WEBUI_URL`、`NAPCAT_OPENAUTH_URL` 指向与另一份实例共用的那个容器（只监听 `127.0.0.1:6099`），`NAPCAT_TOKEN_FILE` 指向两仓库上级目录的 `data\napcat\auth\token`。这一步是必需的：后端不读 `.env`（没有 dotenv 依赖，也没有任何读取 `.env` 的代码，`.env` 只被 `docker compose` 用于变量插值），直接 `node core\client.js` 时若不注入，取码会退回容器域名 `napcat`，而该域名在宿主机上无法解析。容器尚未启动时脚本会给出提示，此时先在 `qq-farm-bot-404` 里执行 `napcat-wslc.ps1 up`。
+
+批处理文件保持纯 ASCII 且使用 CRLF：`cmd` 按控制台代码页读取批处理，UTF-8 中文注释可能被解码成吞掉引号的字节序列，进而把后续行当命令执行（本仓库 `.gitattributes` 也强制 `*.bat eol=crlf`）。
+
 ### Docker Compose
 
 ```bash
