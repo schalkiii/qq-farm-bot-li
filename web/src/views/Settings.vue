@@ -2155,6 +2155,24 @@ async function handleResetSystemConfig() {
                   </div>
                 </div>
 
+                <div v-if="localLoginSettings.qqQrLogin" class="grid grid-cols-1 mt-3 gap-3 md:grid-cols-2">
+                  <BaseInput
+                    v-model="localLoginSettings.napCatEndpoint"
+                    label="NapCat 接口地址"
+                    type="text"
+                    placeholder="http://127.0.0.1:6099/api"
+                  />
+                  <BaseInput
+                    v-model="localLoginSettings.napCatSignature"
+                    label="NapCat 内部 Token（接口签名）"
+                    type="text"
+                    placeholder="容器首次启动生成的随机 Token"
+                  />
+                  <div class="text-xs text-gray-500 md:col-span-2 dark:text-gray-400">
+                    接口地址填 NapCat WebUI 地址：本机直连用 <code>http://127.0.0.1:6099/api</code>，容器编排内用 <code>http://napcat:6099/api</code>。Token 与容器 <code>config/webui.json</code> 的 token 一致，OpenAuth 插件地址按同源自动派生，无需另填。
+                  </div>
+                </div>
+
                 <div class="mt-3 flex justify-end border-t pt-3 dark:border-gray-700">
                   <BaseButton
                     variant="primary"

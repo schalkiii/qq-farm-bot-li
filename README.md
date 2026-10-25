@@ -222,14 +222,18 @@ chmod +x ./qq-farm-bot
 
 1. 打开 Web 面板，使用 `admin` / `admin` 登录。
 2. 进入“设置 → 系统设置”修改管理员密码。
-3. 如需使用 QQ 扫码登录，先部署并启动 [qq-miniapp-auth](https://github.com/liyangpengs/qq-miniapp-auth) 服务，再在“设置 → 系统设置 → 登录设置”开启 QQ 扫码登录，并填写 NapCat 接口地址和接口签名。
+3. 如需使用 QQ 扫码登录，先启动 NapCat 容器（Compose 的 `napcat` profile，或 Windows 上用 WSLC 部署），再在“设置 → 系统设置 → 登录设置”填写 NapCat 接口地址与内部 Token，然后开启 QQ 扫码登录。
 4. 在设置页添加游戏账号，可使用有效 Code、微信扫码或 QQ扫码登录。
 5. 为账号配置种植、自动化和好友策略，并按需设置实例级下线提醒。
 6. 启动账号，在概览页确认连接状态、农场数据和实时日志。
 
 Code 具有时效性；登录失败时应先重新获取 Code 或重新扫码。会话已经建立、之后被外侧拆除（`ws_close` 这类 `phase=online` 的掉线）时，主进程会先用原 Code 把该账号重启一次，试一次仍不通才发下线提醒交人工；心跳判死（`heartbeat_timeout`）、握手阶段就被拒（`400`）和被其他终端踢下线不会自动重试，同一个 Code 十分钟内的重试上限是一次。QQ 客户端被挤下线后，官方“重新登录”会签发新的 Code；可启动 QQFarmCodeHelper 的标准获取模式并开启自动同步，再点击官方“重新登录”，Helper 会更新匹配账号的 Code 并重新启动远程账号。协议监听模式只落盘抓包，永远不会自动上传 Code。
 
-QQ 扫码登录依赖外部 [qq-miniapp-auth](https://github.com/liyangpengs/qq-miniapp-auth) 服务，默认开启。用 compose 部署时在 `.env` 里设 `COMPOSE_PROFILES=napcat` 与 `NAPCAT_LOGIN_ENABLED=true`，napcat 服务会一起起来，取码地址由 `NAPCAT_WEBUI_URL` / `NAPCAT_OPENAUTH_URL` 提供，面板里的 NapCat 接口地址和签名可以不填；不用 compose 自带 NapCat 时，才需要在登录设置里同时填写接口地址与签名（签名需与对端 `API_SIGNING_SECRET` 一致），否则保存登录设置会被拒绝。两者保存在本机数据目录中，由后端调用外部服务时读取。
+QQ 扫码登录直接调用 NapCat 自身的 WebUI 接口和内置 `qq-miniapp-openauth` 插件，不经过额外的登录中转服务。默认开启；用 compose 部署时在 `.env` 里设 `COMPOSE_PROFILES=napcat` 与 `NAPCAT_LOGIN_ENABLED=true`，napcat 服务会一起起来，取码地址由 `NAPCAT_WEBUI_URL` / `NAPCAT_OPENAUTH_URL` 提供，面板里的接口地址和签名可以不填。
+
+地址与凭据按优先级取值：`NAPCAT_WEBUI_URL` / `NAPCAT_OPENAUTH_URL` 环境变量和 `NAPCAT_TOKEN_FILE` 指向的 Token 文件 → 面板「登录设置」里的接口地址与内部 Token → 默认的 `http://napcat:6099/api`。环境变量存在时面板填写不会改变实际请求目标；面板配置用于在宿主机上直接运行后端的场景，此时接口地址填 `http://127.0.0.1:6099`（`/api` 会自动补全，OpenAuth 插件地址按同源派生），内部 Token 填容器 `config/webui.json` 的 `token` 值。两项配置保存在本机数据目录中，未配置容器地址与凭据时保存登录设置会被拒绝。
+
+注意 `.env` 只被 `docker compose` 用于变量插值，后端并不读取它：直接以 `node core/client.js` 运行时，上述环境变量必须在启动它的那个 shell 里设置，否则只能走面板配置这条路。
 
 ## 配置说明
 

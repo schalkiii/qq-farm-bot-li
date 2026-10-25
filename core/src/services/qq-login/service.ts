@@ -45,20 +45,44 @@ export interface QqLoginTask {
     expiresAt: number;
 }
 
-function authToken(): string {
+// 让面板「登录设置」在没有容器编排变量的场景（原生 Windows 直接运行）也真正生效。
+// 两级取值都保留原有优先级：环境变量、容器挂载的 Token 文件在前，
+// 因此 Compose 与外部服务已有部署的行为完全不变。
+function currentLoginSettings(): Partial<LoginSettings> {
     try {
-        return fs.readFileSync(TOKEN_FILE, 'utf8').trim();
+        return store.getLoginSettings() || {};
     } catch {
-        return '';
+        return {};
     }
 }
 
+function authToken(): string {
+    try {
+        const fromFile = fs.readFileSync(TOKEN_FILE, 'utf8').trim();
+        if (fromFile)
+            return fromFile;
+    } catch {}
+    // 未挂载 Token 文件时，退回面板填写的「接口签名」，其值就是容器内部 Token。
+    return String(currentLoginSettings().napCatSignature || '').trim();
+}
+
 function napCatEndpoint(): string {
-    return process.env.NAPCAT_WEBUI_URL || 'http://napcat:6099/api';
+    const configured = String(process.env.NAPCAT_WEBUI_URL || '').trim()
+        || String(currentLoginSettings().napCatEndpoint || '').trim();
+    if (!configured)
+        return 'http://napcat:6099/api';
+    // 允许只填站点根地址，NapCat 的 WebUI 接口固定挂在 /api 下。
+    const normalized = configured.replace(/\/+$/, '');
+    return /\/api$/i.test(normalized) ? normalized : `${normalized}/api`;
 }
 
 function napCatOpenAuthEndpoint(): string {
-    return process.env.NAPCAT_OPENAUTH_URL || 'http://napcat:6099/plugin/qq-miniapp-openauth/api';
+    const override = String(process.env.NAPCAT_OPENAUTH_URL || '').trim();
+    if (override)
+        return override;
+    // OpenAuth 插件与 WebUI 同源，只需配置一个接口地址。
+    const base = napCatEndpoint().replace(/\/api$/i, '');
+    return `${base}/plugin/qq-miniapp-openauth/api`;
 }
 
 function loginSettings(): LoginSettings {
