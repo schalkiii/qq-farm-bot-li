@@ -47,7 +47,7 @@ export interface QqLoginTask {
 
 // 让面板「登录设置」在没有容器编排变量的场景（原生 Windows 直接运行）也真正生效。
 // 两级取值都保留原有优先级：环境变量、容器挂载的 Token 文件在前，
-// 因此 Compose 与外部服务已有部署的行为完全不变。
+// 因此已经注入这些变量的 Compose 等部署行为完全不变。
 function currentLoginSettings(): Partial<LoginSettings> {
     try {
         return store.getLoginSettings() || {};
